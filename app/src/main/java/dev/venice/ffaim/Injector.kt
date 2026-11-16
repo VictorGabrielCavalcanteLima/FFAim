@@ -25,7 +25,7 @@ object Injector {
             val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
             val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
             val im = asInterface.invoke(null, binder)
-            val inject = im?.javaClass?.getMethod("injectInputEvent", InputEvent::class.java, Int::class.java)
+            val inject = im?.javaClass?.getMethod("injectInputEvent", InputEvent::class.java, Int::class.javaPrimitiveType)
             inject?.invoke(im, ev, 0)
         } catch (t: Throwable) {
             t.printStackTrace()
@@ -68,7 +68,7 @@ object Injector {
         return try {
             val scClass = Class.forName("android.view.SurfaceControl")
             val bitmap = if (Build.VERSION.SDK_INT >= 28) {
-                val method = scClass.getMethod("screenshot", android.graphics.Rect::class.java, Int::class.java, Int::class.java, Int::class.java)
+                val method = scClass.getMethod("screenshot", android.graphics.Rect::class.java, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)
                 method.invoke(null, null, 0, 0, 0) as? Bitmap
             } else {
                 null
