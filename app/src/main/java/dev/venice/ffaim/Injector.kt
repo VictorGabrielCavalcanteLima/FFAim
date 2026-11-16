@@ -1,9 +1,8 @@
 package dev.venice.ffaim
 
 import android.graphics.Bitmap
-import android.hardware.input.IInputManager
-import android.hardware.input.InputManager
 import android.os.Build
+import android.os.IBinder
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.InputEvent
@@ -16,15 +15,21 @@ import java.nio.ByteOrder
 
 object Injector {
 
-    private val im: IInputManager by lazy {
-        IInputManager.Stub.asInterface(
-            ShizukuBinderWrapper(SystemServiceHelper.getSystemService("input"))
-        )
+    private val binder: IBinder by lazy {
+        ShizukuBinderWrapper(SystemServiceHelper.getSystemService("input"))
     }
 
     private fun send(ev: InputEvent) {
-        ev.setDisplayId(0)
-        im.injectInputEvent(ev, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC)
+        try {
+            ev.setDisplayId(0)
+            val stubClass = Class.forName("android.hardware.input.IInputManager\$Stub")
+            val asInterface = stubClass.getMethod("asInterface", IBinder::class.java)
+            val im = asInterface.invoke(null, binder)
+            val inject = im?.javaClass?.getMethod("injectInputEvent", InputEvent::class.java, Int::class.java)
+            inject?.invoke(im, ev, 0)
+        } catch (t: Throwable) {
+            t.printStackTrace()
+        }
     }
 
     private fun event(down: Long, t: Long, action: Int, x: Float, y: Float): MotionEvent {
@@ -85,13 +90,15 @@ object Injector {
             val p = Shizuku.newProcess(arrayOf("/system/bin/screencap"), null, null)
             val raw = p.inputStream.readBytes()
             p.waitFor()
-            if (raw.size < 16) return null
-            val bb = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN)
-            val w = bb.int
-            val h = bb.int
-            bb.int
-            if (w <= 0 || h <= 0 || raw.size < 12 + w * h * 4) null
-            else Triple(w, h, raw)
+            if (raw.size < 16) null
+            else {
+                val bb = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN)
+                val w = bb.int
+                val h = bb.int
+                bb.int
+                if (w <= 0 || h <= 0 || raw.size < 12 + w * h * 4) null
+                else Triple(w, h, raw)
+            }
         } catch (t: Throwable) {
             null
         }
